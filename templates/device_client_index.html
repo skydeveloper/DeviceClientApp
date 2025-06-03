@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Device Client - {{ device_id }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: Inter, sans-serif; background-color: #f0f4f8; color: #333; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh;}
+        .container { width: 100%; max-width: 700px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color: #1a202c; text-align: center; margin-bottom: 20px; }
+        h2 { color: #2d3748; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;}
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #4a5568; }
+        input[type="text"] { margin-bottom: 12px; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; box-sizing: border-box; width: 100%; font-size: 1rem; }
+        input[type="checkbox"] { margin-right: 8px; transform: scale(1.2); }
+        button { background-color: #4299e1; color: white; padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; font-size: 1rem; }
+        button:hover { background-color: #2b6cb0; }
+        button:disabled { background-color: #a0aec0; cursor: not-allowed; }
+        .status-box { background-color: #edf2f7; border: 1px solid #e2e8f0; padding: 15px; margin-bottom: 20px; border-radius: 5px;}
+        .status-message { font-weight: bold; }
+        .status-idle { color: #4299e1; } /* Blue */
+        .status-busy { color: #f6ad55; } /* Orange */
+        .status-success { color: #48bb78; } /* Green */
+        .status-error { color: #f56565; } /* Red */
+        .error-message { color: #e53e3e; font-weight: bold; margin-top: 5px;}
+        .slot-config { border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 10px; border-radius: 4px; background-color: #f7fafc;}
+        .slot-label { font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold">{{ device_id }}</h1>
+
+        <div class="status-box">
+            <h2 class="text-xl font-semibold">Текущо Състояние</h2>
+            <p><strong>Статус:</strong>
+                <span class="status-message
+                    {% if 'успешно' in task_info.status_message.lower() %}status-success
+                    {% elif 'грешка' in task_info.status_message.lower() or task_info.error_message %}status-error
+                    {% elif 'зает' in task_info.status_message.lower() or task_info.is_busy %}status-busy
+                    {% else %}status-idle{% endif %}">
+                    {{ task_info.status_message }}
+                </span>
+            </p>
+            {% if task_info.error_message %}
+                <p class="error-message"><strong>Детайли за грешка:</strong> {{ task_info.error_message }}</p>
+            {% endif %}
+            <p class="mt-2"><strong>Последна команда от ASMg:</strong></p>
+            <pre class="bg-gray-100 p-2 rounded text-sm overflow-x-auto">{{ task_info.last_asmg_command | tojson(indent=2) if task_info.last_asmg_command else 'Няма получени команди от ASMg.' }}</pre>
+        </div>
+
+        <form action="{{ url_for('device_client_index') }}" method="POST">
+            <h2 class="text-xl font-semibold">Ръчно стартиране на задача</h2>
+
+            <div class="mb-4">
+                <label for="item_name">Име/Номер на изделие:</label>
+                <input type="text" id="item_name" name="item_name" value="{{ task_info.item_name or 'DefaultItem123' }}">
+            </div>
+
+            <h3 class="text-lg font-medium mb-2">Конфигурация на гнезда:</h3>
+            {% for i in range(4) %}
+            <div class="slot-config">
+                <p class="slot-label">Гнездо {{ i+1 }}:</p>
+                <div class="mb-2">
+                    <label for="serial_num_{{ i+1 }}">Сериен №:</label>
+                    <input type="text" id="serial_num_{{ i+1 }}" name="serial_num_{{ i+1 }}" value="{{ task_info.module_serial_numbers[i] or '' }}">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="slot_{{ i+1 }}_active" name="slot_{{ i+1 }}_active" {% if task_info.active_slots[i] %}checked{% endif %}>
+                    <label for="slot_{{ i+1 }}_active" class="ml-2">Активно</label>
+                </div>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded mt-6"
+                    {% if task_info.is_busy %}disabled title="Устройството е заето в момента"{% endif %}>
+                Стартирай Програмиране/Тест (Ръчно)
+            </button>
+            {% if task_info.is_busy %}
+            <p class="text-orange-600 font-bold mt-2 text-center">Устройството обработва задача, моля изчакайте...</p>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+DeviceClientApp/
+|-- device_client_app.py     # Основният Flask файл
+|-- programmer_interface.py  # Модул за комуникация с реалната програма за програмиране/тестване
+|-- requirements.txt         # Файл със зависимостите
+|-- templates/
+|   |-- device_client_index.html # Основният HTML шаблон
+|-- static/                  # Папка за статични файлове (ако са нужни)
+    |-- css/
+    |   |-- style_device_client.css  (опционално)
+    |-- js/
+        |-- device_client_main.js    (опционално, ако интерфейсът стане по-сложен)
