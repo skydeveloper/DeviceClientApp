@@ -1,4 +1,27 @@
 # Файл: DeviceClientApp/programmer_interface.py
+import logging
+
+logger = logging.getLogger("DeviceClientLogger")
+
+
+def start_actual_task(handler, module_serials, active_slots, item_name):
+    """
+    Тази функция вече не съдържа специфична логика.
+    Тя просто приема 'handler' обект и извиква неговия 'execute' метод.
+    """
+    logger.info(f"ProgrammerInterface: Препращане на задача към {handler.__class__.__name__}.")
+
+    if not handler:
+        logger.error("ProgrammerInterface: Не е предоставен валиден handler!")
+        return {
+            "success": False, "message": "Грешка в конфигурацията: липсва handler за изпълнение.",
+            "item_name": item_name, "timestamp": datetime.now().isoformat(), "slot_results": []
+        }
+
+    # Делегираме изпълнението на конкретния handler
+    return handler.execute(module_serials, active_slots, item_name)
+'''
+# Файл: DeviceClientApp/programmer_interface.py
 import time
 import random
 import logging
@@ -83,3 +106,4 @@ def get_device_current_status():
     """
     # Засега просто връщаме примерен статичен статус
     return {"status": "idle", "message": "Устройството е готово за нови задачи."}
+'''

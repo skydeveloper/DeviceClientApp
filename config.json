@@ -1,0 +1,7 @@
+{
+  "device_id": "Програматор_Програмиране_01",
+  "device_role": "programmer",
+  "role_specific_config": {
+    "turbovalidator_path": "C:/Program Files/Turbovalidator/turbovalidator.exe"
+  }
+}

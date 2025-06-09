@@ -9,3 +9,29 @@ DeviceClientApp/
     |   |-- style_device_client.css  (опционално)
     |-- js/
         |-- device_client_main.js    (опционално, ако интерфейсът стане по-сложен)
+
+
+
+
+
+
+
+DeviceClientApp/
+|-- device_client_app.py
+|-- programmer_interface.py
+|-- requirements.txt
+|-- config.json              <-- НОВ файл за конфигурация
+|-- templates/
+|   |-- device_client_index.html
+|-- roles/                   <-- НОВА папка
+    |-- __init__.py
+    |-- base_handler.py
+    |-- programmer_handler.py
+    |-- verifier_handler.py
+    |-- functional_tester_handler.py
+
+ В roles ще има по един Python файл за всяка роля:
+programmer_handler.py: Ще съдържа логиката за програмиране с Turbovalidator.
+verifier_handler.py: Ще съдържа логиката за верификация и "заспиване" с Turbovalidator.
+functional_tester_handler.py: Ще съдържа логиката за функционалния тест.
+base_handler.py: (Опционално, но е добра практика) Ще дефинира общ "интерфейс", който всеки handler трябва да следва.
