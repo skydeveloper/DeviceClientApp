@@ -2,6 +2,16 @@
   "device_id": "Програматор_Програмиране_01",
   "device_role": "programmer",
   "role_specific_config": {
-    "turbovalidator_path": "C:/Program Files/Turbovalidator/turbovalidator.exe"
+    "turbovalidator_path": "C:/Apps/Turbovalidator/turbovalidator.exe",
+    "com_ports": {
+      "relay_controller": {
+        "port": "COM1",
+        "baudrate": 9600
+      },
+      "serial_injector": {
+        "port": "COM2",
+        "baudrate": 19200
+      }
+    }
   }
 }

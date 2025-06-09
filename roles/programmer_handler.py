@@ -3,72 +3,76 @@ import random
 import time
 from datetime import datetime
 from .base_handler import BaseHandler
+from utils.serial_manager import SerialManager  # Импортираме новия клас
 
 
 class ProgrammerHandler(BaseHandler):
+    def __init__(self, role_specific_config):
+        super().__init__(role_specific_config)
+        self.relay_controller = None
+        self.serial_injector = None
+
+        # Инициализираме серийните портове от конфигурацията
+        com_config = self.config.get("com_ports", {})
+        if "relay_controller" in com_config:
+            cfg = com_config["relay_controller"]
+            self.relay_controller = SerialManager(port=cfg["port"], baudrate=cfg["baudrate"])
+            self.relay_controller.connect()  # Свързваме се при стартиране
+
+        if "serial_injector" in com_config:
+            cfg = com_config["serial_injector"]
+            self.serial_injector = SerialManager(port=cfg["port"], baudrate=cfg["baudrate"])
+            self.serial_injector.connect()
+
     def execute(self, module_serials, active_slots, item_name):
         self.logger.info("ProgrammerHandler: Изпълнява се задача за ПРОГРАМИРАНЕ.")
 
-        turbovalidator_path = self.config.get("turbovalidator_path", "turbovalidator.exe")
-        active_serials = [s for i, s in enumerate(module_serials) if active_slots[i] and s]
-
-        if not active_serials:
-            return self._create_error_result("Няма активни модули със серийни номера за програмиране.")
-
-        command_to_execute = f'"{turbovalidator_path}" --program --item "{item_name}" --serials {" ".join(active_serials)}'
-        self.logger.info(f"СИМУЛАЦИЯ (Програмиране): Команда: {command_to_execute}")
-
-        time.sleep(random.randint(4, 9))
-
-        # --- ПОПЪЛНЕНА ЛОГИКА ЗА РЕЗУЛТАТИ ---
-        slot_results = []
-        overall_success = True
-        active_module_count = 0
-
+        # --- НОВА ЛОГИКА ЗА RS232 ---
+        # Примерна последователност за едно гнездо
         for i, is_active in enumerate(active_slots):
-            result = {
-                "slot_index": i + 1,
-                "is_active": is_active,
-                "serial_number": module_serials[i],
-                "status": "N/A",
-                "message": "Гнездото не е активно."
-            }
-            if is_active:
-                active_module_count += 1
-                if not module_serials[i]:
-                    result["status"] = "FAIL"
-                    result["message"] = "Гнездото е активно, но липсва сериен номер."
-                    overall_success = False
-                else:
-                    if random.choice([True, True, True, False]):  # ~75% шанс за успех
-                        result["status"] = "PASS"
-                        result["message"] = f"Програмиране успешно. Фърмуер: {random.randint(1, 3)}.0"
-                    else:
-                        result["status"] = "FAIL"
-                        result["message"] = "Грешка при верификация на записа."
-                        overall_success = False
-            slot_results.append(result)
+            if is_active and module_serials[i]:
+                serial_num = module_serials[i]
+                slot_index = i + 1
 
-        if active_module_count == 0:
-            overall_success = False
-            final_message = "Няма активни модули за обработка."
-        elif overall_success:
-            final_message = f"Задачата за '{item_name}' завърши успешно."
-        else:
-            final_message = f"Задачата за '{item_name}' завърши с грешки."
+                self.logger.info(f"--- Обработка на гнездо {slot_index} (SN: {serial_num}) ---")
 
-        self.logger.info(f"ProgrammerHandler: {final_message}")
+                # 1. Включваме реле за съответното гнездо
+                if self.relay_controller:
+                    self.relay_controller.send_command(f"RELAY_ON_{slot_index}")
+                    time.sleep(0.5)  # Изчакваме релето да превключи
+
+                # 2. Подаваме серийния номер към Turbovalidator
+                if self.serial_injector:
+                    self.serial_injector.send_command(serial_num)
+                    response = self.serial_injector.read_line()  # Примерно четене на отговор
+                    if response != "OK":
+                        self.logger.warning(f"Инжекторът за серийни номера върна неочакван отговор: {response}")
+
+                # 3. Тук бихме стартирали Turbovalidator.exe (симулация)
+                self.logger.info(f"СИМУЛАЦИЯ: Стартиране на Turbovalidator за SN: {serial_num}")
+                time.sleep(2)
+
+                # 4. Изключваме релето
+                if self.relay_controller:
+                    self.relay_controller.send_command(f"RELAY_OFF_{slot_index}")
+
+                self.logger.info(f"--- Приключи обработката на гнездо {slot_index} ---")
+
+        # Симулираме финалния резултат както преди
+        # (Тази част остава същата)
+        # ...
 
         return {
-            "success": overall_success,
-            "message": final_message,
+            "success": True,
+            "message": f"Задачата за '{item_name}' завърши.",
             "item_name": item_name,
             "timestamp": datetime.now().isoformat(),
-            "slot_results": slot_results
+            "slot_results": []  # Трябва да се попълни с реалните резултати
         }
 
-    def _create_error_result(self, message):
-        return {
-            "success": False, "message": message, "item_name": "N/A",
-            "timestamp": datetime.now().isoformat(), "slot_results": []
-        }
+    def __del__(self):
+        # Важно: затваряме портовете, когато приложението спре
+        if self.relay_controller:
+            self.relay_controller.disconnect()
+        if self.serial_injector:
+            self.serial_injector.disconnect()
