@@ -6,7 +6,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: Inter, sans-serif; background-color: #f0f4f8; color: #333; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh;}
-        .container { width: 100%; max-width: 700px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .container { width: 100%; max-width: 900px; /* Увеличихме ширината */ background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h1 { color: #1a202c; text-align: center; margin-bottom: 20px; }
         h2 { color: #2d3748; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;}
         label { display: block; margin-bottom: 5px; font-weight: 600; color: #4a5568; }
@@ -24,6 +24,14 @@
         .error-message { color: #e53e3e; font-weight: bold; margin-top: 5px;}
         .slot-config { border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 10px; border-radius: 4px; background-color: #f7fafc;}
         .slot-label { font-weight: 500; }
+        /* Стилове за таблицата с история */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .history-table th, .history-table td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+        .history-table th { background-color: #f7fafc; }
+        .result-pass { background-color: #c6f6d5; } /* green-200 */
+        .result-fail { background-color: #fed7d7; } /* red-200 */
+        .slot-pass { color: #38a169; } /* green-600 */
+        .slot-fail { color: #e53e3e; } /* red-600 */
     </style>
 </head>
 <body>
@@ -35,8 +43,8 @@
             <p><strong>Статус:</strong>
                 <span class="status-message
                     {% if 'успешно' in task_info.status_message.lower() %}status-success
-                    {% elif 'грешка' in task_info.status_message.lower() or task_info.error_message %}status-error
-                    {% elif 'зает' in task_info.status_message.lower() or task_info.is_busy %}status-busy
+                    {% elif 'грешка' in task_info.status_message.lower() or 'не завърши' in task_info.status_message.lower() or task_info.error_message %}status-error
+                    {% elif 'зает' in task_info.status_message.lower() or 'обработка' in task_info.status_message.lower() or task_info.is_busy %}status-busy
                     {% else %}status-idle{% endif %}">
                     {{ task_info.status_message }}
                 </span>
@@ -48,37 +56,79 @@
             <pre class="bg-gray-100 p-2 rounded text-sm overflow-x-auto">{{ task_info.last_asmg_command | tojson(indent=2) if task_info.last_asmg_command else 'Няма получени команди от ASMg.' }}</pre>
         </div>
 
-        <form action="{{ url_for('device_client_index') }}" method="POST">
-            <h2 class="text-xl font-semibold">Ръчно стартиране на задача</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+            <div>
+                <form action="{{ url_for('device_client_index') }}" method="POST">
+                    <h2 class="text-xl font-semibold">Ръчно стартиране на задача</h2>
 
-            <div class="mb-4">
-                <label for="item_name">Име/Номер на изделие:</label>
-                <input type="text" id="item_name" name="item_name" value="{{ task_info.item_name or 'DefaultItem123' }}">
+                    <div class="mb-4">
+                        <label for="item_name">Име/Номер на изделие:</label>
+                        <input type="text" id="item_name" name="item_name" value="{{ task_info.item_name or 'DefaultItem123' }}">
+                    </div>
+
+                    <h3 class="text-lg font-medium mb-2">Конфигурация на гнезда:</h3>
+                    {% for i in range(4) %}
+                    <div class="slot-config">
+                        <p class="slot-label">Гнездо {{ i+1 }}:</p>
+                        <div class="mb-2">
+                            <label for="serial_num_{{ i+1 }}">Сериен №:</label>
+                            <input type="text" id="serial_num_{{ i+1 }}" name="serial_num_{{ i+1 }}" value="{{ task_info.module_serial_numbers[i] or '' }}">
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="slot_{{ i+1 }}_active" name="slot_{{ i+1 }}_active" {% if task_info.active_slots[i] %}checked{% endif %}>
+                            <label for="slot_{{ i+1 }}_active" class="ml-2">Активно</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded mt-6"
+                            {% if task_info.is_busy %}disabled title="Устройството е заето в момента"{% endif %}>
+                        Стартирай Програмиране/Тест (Ръчно)
+                    </button>
+                    {% if task_info.is_busy %}
+                    <p class="text-orange-600 font-bold mt-2 text-center">Устройството обработва задача, моля изчакайте...</p>
+                    {% endif %}
+                </form>
             </div>
-
-            <h3 class="text-lg font-medium mb-2">Конфигурация на гнезда:</h3>
-            {% for i in range(4) %}
-            <div class="slot-config">
-                <p class="slot-label">Гнездо {{ i+1 }}:</p>
-                <div class="mb-2">
-                    <label for="serial_num_{{ i+1 }}">Сериен №:</label>
-                    <input type="text" id="serial_num_{{ i+1 }}" name="serial_num_{{ i+1 }}" value="{{ task_info.module_serial_numbers[i] or '' }}">
+            <div>
+                <h2 class="text-xl font-semibold">История на резултатите (последни {{ task_history|length }})</h2>
+                {% if not task_history %}
+                    <p>Все още няма записани резултати.</p>
+                {% else %}
+                <div class="overflow-y-auto h-[600px]">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Време</th>
+                                <th>Изделие</th>
+                                <th>Резултат</th>
+                                <th>Детайли по гнезда</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in task_history %}
+                            <tr class="{% if task.success %}result-pass{% else %}result-fail{% endif %}">
+                                <td class="text-sm">{{ task.timestamp.split('T')[1].split('.')[0] }}</td>
+                                <td class="font-medium">{{ task.item_name }}</td>
+                                <td class="font-bold">{% if task.success %}PASS{% else %}FAIL{% endif %}</td>
+                                <td>
+                                    {% for slot_res in task.slot_results %}
+                                        {% if slot_res.is_active %}
+                                            <div class="text-xs {% if slot_res.status == 'PASS' %}slot-pass{% elif slot_res.status == 'FAIL' %}slot-fail{% endif %}">
+                                                <strong>Гнездо {{ slot_res.slot_index }}:</strong> {{ slot_res.status }}
+                                                <span class="text-gray-600">({{ slot_res.serial_number }}) - {{ slot_res.message }}</span>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="slot_{{ i+1 }}_active" name="slot_{{ i+1 }}_active" {% if task_info.active_slots[i] %}checked{% endif %}>
-                    <label for="slot_{{ i+1 }}_active" class="ml-2">Активно</label>
-                </div>
+                {% endif %}
             </div>
-            {% endfor %}
-
-            <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded mt-6"
-                    {% if task_info.is_busy %}disabled title="Устройството е заето в момента"{% endif %}>
-                Стартирай Програмиране/Тест (Ръчно)
-            </button>
-            {% if task_info.is_busy %}
-            <p class="text-orange-600 font-bold mt-2 text-center">Устройството обработва задача, моля изчакайте...</p>
-            {% endif %}
-        </form>
+        </div>
     </div>
 </body>
 </html>
